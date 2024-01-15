@@ -19,8 +19,20 @@ struct Request {
 /// to the contents of the response payload.
 #[derive(Serialize)]
 struct Response {
-    req_id: String,
+    access_token: String,
+    expires_in: String,
     msg: String,
+    refresh_token: String,
+    req_id: String,
+    token_type: String,
+}
+
+#[derive(Deserialize)]
+struct ServiceFusionClientCredentialsGrantResponse {
+    access_token: String,
+    expires_in: String,
+    refresh_token: String,
+    token_type: String,
 }
 
 async fn function_handler(event: LambdaEvent<Request>) -> Result<Response, Error> {
@@ -33,7 +45,6 @@ async fn function_handler(event: LambdaEvent<Request>) -> Result<Response, Error
     let data = json!({
         "client_id": client_id,
         "client_secret": client_secret,
-        "audience": "client-credentials-grant",
         "grant_type": "client_credentials"
     });
 
@@ -44,14 +55,16 @@ async fn function_handler(event: LambdaEvent<Request>) -> Result<Response, Error
         .post(request_url)
         .json(&data)
         .send()
-        .await?
-        .text()
         .await?;
 
-    // Prepare the response
+    let data = response.json::<ServiceFusionClientCredentialsGrantResponse>().await?;
     let resp = Response {
+        access_token: data.access_token,
+        expires_in: data.expires_in,
+        msg: "Ok".to_string(),
+        refresh_token: data.refresh_token,
         req_id: event.context.request_id,
-        msg: format!("Body {}.", response),
+        token_type: data.token_type,
     };
 
     // Return `Response` (it will be serialized to JSON automatically by the runtime)
